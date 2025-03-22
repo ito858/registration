@@ -1,15 +1,16 @@
 # app/routers/vip.py
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from sqlalchemy.orm import Session
 from app.dependencies import get_db
 from app.models.vip import Vip
-from app.schemas.vip import VipCheckPhone, VipCreate, VipResponse
+from app.schemas.vip import VipCheckPhone, VipResponse
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 import logging
-from barcode import Code128  # Using Code128, a well-supported barcode format
+from barcode import Code128
 from barcode.writer import ImageWriter
 import os
+import re
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -27,24 +28,78 @@ async def check_phone(phone: VipCheckPhone, db: Session = Depends(get_db)):
     logger.debug(f"Phone number {phone.cellulare} not found")
     return {"exists": False}
 
+@router.get("/register", response_class=HTMLResponse)
+async def get_register_form(request: Request):
+    logger.info("Rendering registration form")
+    return templates.TemplateResponse(
+        "register.html",
+        {
+            "request": request,
+            "warning": None,
+            "form_data": {}
+        }
+    )
+
 @router.post("/register", response_class=HTMLResponse)
 async def register_vip(
     request: Request,
-    vip_data: VipCreate,
+    cellulare: str = Form(...),
+    Nome: str = Form(...),
+    cognome: str = Form(...),
+    nascita: str = Form(None),
+    Email: str = Form(None),
+    Indirizzo: str = Form(None),
+    Citta: str = Form(None),
+    Prov: str = Form(None),
+    Cap: str = Form(None),
     db: Session = Depends(get_db)
 ):
-    logger.info(f"Registering new VIP with phone: {vip_data.cellulare}")
+    logger.info(f"Registering new VIP with phone: {cellulare}")
+
+    # Validate phone number (Italian, 10 digits)
+    cellulare_cleaned = re.sub(r"^\+?39", "", cellulare.strip())
+    cellulare_cleaned = re.sub(r"\D", "", cellulare_cleaned)
+    if not re.match(r"^\d{10}$", cellulare_cleaned):
+        logger.warning(f"Invalid phone number format: {cellulare}")
+        return templates.TemplateResponse(
+            "register.html",
+            {
+                "request": request,
+                "warning": "Phone number must be a 10-digit Italian number",
+                "form_data": {
+                    "cellulare": cellulare,
+                    "Nome": Nome,
+                    "cognome": cognome,
+                    "nascita": nascita,
+                    "Email": Email,
+                    "Indirizzo": Indirizzo,
+                    "Citta": Citta,
+                    "Prov": Prov,
+                    "Cap": Cap
+                }
+            }
+        )
 
     # Step 1: Check if phone exists
-    existing = db.query(Vip).filter(Vip.cellulare == vip_data.cellulare).first()
+    existing = db.query(Vip).filter(Vip.cellulare == cellulare_cleaned).first()
     if existing:
-        logger.warning(f"Phone number {vip_data.cellulare} already registered")
+        logger.warning(f"Phone number {cellulare_cleaned} already registered")
         return templates.TemplateResponse(
             "register.html",
             {
                 "request": request,
                 "warning": "This phone number is already registered",
-                "form_data": vip_data.dict()
+                "form_data": {
+                    "cellulare": cellulare,
+                    "Nome": Nome,
+                    "cognome": cognome,
+                    "nascita": nascita,
+                    "Email": Email,
+                    "Indirizzo": Indirizzo,
+                    "Citta": Citta,
+                    "Prov": Prov,
+                    "Cap": Cap
+                }
             }
         )
 
@@ -63,15 +118,15 @@ async def register_vip(
     logger.debug(f"Cleaned fields for IDvip: {available_vip.IDvip}")
 
     # Step 4: Assign new data
-    available_vip.nascita = vip_data.nascita
-    available_vip.cellulare = vip_data.cellulare
-    available_vip.Nome = vip_data.Nome
-    available_vip.cognome = vip_data.cognome
-    available_vip.Email = vip_data.Email
-    available_vip.Indirizzo = vip_data.Indirizzo
-    available_vip.Citta = vip_data.Citta
-    available_vip.Prov = vip_data.Prov
-    available_vip.Cap = vip_data.Cap
+    available_vip.nascita = nascita
+    available_vip.cellulare = cellulare_cleaned
+    available_vip.Nome = Nome
+    available_vip.cognome = cognome
+    available_vip.Email = Email
+    available_vip.Indirizzo = Indirizzo
+    available_vip.Citta = Citta
+    available_vip.Prov = Prov
+    available_vip.Cap = Cap
 
     # Step 5: Set stato = 0 (taken)
     available_vip.stato = 0

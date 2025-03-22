@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse  # Add this import
 from app.routers import vip
 import logging
 
@@ -17,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
-app = FastAPI(title="Registraction")
+app = FastAPI(title="Registration")
 
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -34,8 +35,15 @@ async def startup_event():
 async def shutdown_event():
     logger.info("Application shutting down...")
 
-# Root endpoint for testing
+# # Root endpoint for testing
+# @app.get("/")
+# async def root():
+#     logger.info("Root endpoint accessed")
+#     return {"message": "Welcome to Registraction"}
+
+# Updated root endpoint to redirect to registration
 @app.get("/")
 async def root():
-    logger.info("Root endpoint accessed")
-    return {"message": "Welcome to Registraction"}
+    logger.info("Root endpoint accessed, redirecting to /vip/register")
+    return RedirectResponse(url="/vip/register")
+

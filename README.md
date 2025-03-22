@@ -1,4 +1,4 @@
-# Registraction
+# Registration
 
 A FastAPI-based application for managing VIP membership registrations for local stores and supermarkets.
 
