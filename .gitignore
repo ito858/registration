@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+
+# IDEs
+.idea/
+.vscode/
+
+# Miscellaneous
+*.log
+*.pot
+*.DS_Store
