@@ -11,9 +11,22 @@ from barcode import Code128
 from barcode.writer import ImageWriter
 import os
 import re
+import requests
+from dotenv import load_dotenv
+from io import BytesIO
+import base64
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+# Load environment variable
+load_dotenv()
+RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY")
+RECAPTCHA_SITE_KEY = os.getenv("RECAPTCHA_SITE_KEY")
+
+if not RECAPTCHA_SECRET_KEY or not RECAPTCHA_SITE_KEY:
+    logger.error("reCAPTCHA keys not found in environment variables")
+    raise ValueError("RECAPTCHA_SITE_KEY and RECAPTCHA_SECRET_KEY are required")
 
 router = APIRouter(prefix="/vip", tags=["vip"])
 templates = Jinja2Templates(directory="app/templates")
@@ -36,7 +49,8 @@ async def get_register_form(request: Request):
         {
             "request": request,
             "warning": None,
-            "form_data": {}
+            "form_data": {},
+            "recaptcha_site_key": RECAPTCHA_SITE_KEY
         }
     )
 
@@ -52,9 +66,46 @@ async def register_vip(
     Citta: str = Form(None),
     Prov: str = Form(None),
     Cap: str = Form(None),
+    recaptcha_response: str = Form(...),
     db: Session = Depends(get_db)
 ):
     logger.info(f"Registering new VIP with phone: {cellulare}")
+
+    # Verify reCAPTCHA v3
+    verification_url = "https://www.google.com/recaptcha/api/siteverify"
+    payload = {
+        "secret": RECAPTCHA_SECRET_KEY,
+        "response": recaptcha_response
+    }
+    try:
+        response = requests.post(verification_url, data=payload)
+        result = response.json()
+        logger.debug(f"reCAPTCHA response: {result}")
+
+        if not result.get("success") or result.get("score", 0) < 0.5:
+            logger.warning(f"reCAPTCHA verification failed: success={result.get('success')}, score={result.get('score')}")
+            return templates.TemplateResponse(
+                "register.html",
+                {
+                    "request": request,
+                    "warning": "CAPTCHA verification failed. Are you a bot?",
+                    "form_data": {
+                        "cellulare": cellulare,
+                        "Nome": Nome,
+                        "cognome": cognome,
+                        "nascita": nascita,
+                        "Email": Email,
+                        "Indirizzo": Indirizzo,
+                        "Citta": Citta,
+                        "Prov": Prov,
+                        "Cap": Cap
+                    },
+                    "recaptcha_site_key": RECAPTCHA_SITE_KEY
+                }
+            )
+    except Exception as e:
+        logger.error(f"reCAPTCHA verification request failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="CAPTCHA verification error")
 
     # Validate phone number (Italian, 10 digits)
     cellulare_cleaned = re.sub(r"^\+?39", "", cellulare.strip())
@@ -76,7 +127,8 @@ async def register_vip(
                     "Citta": Citta,
                     "Prov": Prov,
                     "Cap": Cap
-                }
+                },
+                "recaptcha_site_key": RECAPTCHA_SITE_KEY
             }
         )
 
@@ -99,7 +151,8 @@ async def register_vip(
                     "Citta": Citta,
                     "Prov": Prov,
                     "Cap": Cap
-                }
+                },
+                "recaptcha_site_key": RECAPTCHA_SITE_KEY
             }
         )
 
@@ -114,7 +167,7 @@ async def register_vip(
     # Step 3: Clean the row
     fields_to_clean = ["nascita", "cellulare", "Nome", "cognome", "Email", "Indirizzo", "Citta", "Prov", "Cap"]
     for field in fields_to_clean:
-        setattr(available_vip, field, None)
+        setattr(available_vip, field, "")  # Set to empty string instead of None
     logger.debug(f"Cleaned fields for IDvip: {available_vip.IDvip}")
 
     # Step 4: Assign new data
@@ -134,21 +187,27 @@ async def register_vip(
     db.refresh(available_vip)
     logger.info(f"VIP registered with IDvip: {available_vip.IDvip}, code: {available_vip.code}")
 
-    # Step 6: Generate barcode
-    barcode_path = f"app/static/images/barcode_{available_vip.IDvip}.png"
+    # Step 6: Generate barcode in memory
     try:
         barcode = Code128(available_vip.code, writer=ImageWriter())
-        barcode.save(f"app/static/images/barcode_{available_vip.IDvip}")
-        logger.info(f"Barcode generated for code {available_vip.code} at {barcode_path}")
+        buffer = BytesIO()
+        barcode.write(buffer)  # Write PNG data to buffer
+        barcode_data = buffer.getvalue()  # Get bytes
+        buffer.close()
+        # Encode as base64 for embedding in HTML
+        barcode_base64 = base64.b64encode(barcode_data).decode('utf-8')
+        barcode_data_url = f"data:image/png;base64,{barcode_base64}"
+        logger.info(f"Barcode generated in memory for code: {available_vip.code}")
     except Exception as e:
         logger.error(f"Failed to generate barcode: {str(e)}")
         raise HTTPException(status_code=500, detail="Barcode generation failed")
 
-    # Step 7: Render dashboard
+    # Step 7: Render dashboard with in-memory barcode
     return templates.TemplateResponse(
         "dashboard.html",
         {
             "request": request,
-            "vip": available_vip
+            "vip": available_vip,
+            "barcode_data_url": barcode_data_url  # Pass the data URL to the template
         }
     )

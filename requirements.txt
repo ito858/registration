@@ -8,3 +8,4 @@ jinja2==3.1.3
 python-barcode==0.15.1
 # For generating barcode images, Pillow is required
 pillow==10.2.0
+requests==2.32.3

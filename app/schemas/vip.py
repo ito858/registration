@@ -62,6 +62,6 @@ class VipResponse(BaseModel):
     cognome: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 logger.info("Pydantic schemas defined")
