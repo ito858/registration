@@ -16,3 +16,4 @@ dependencies = [
     "sqlalchemy==2.0.28",
     "uvicorn==0.29.0",
 ]
+

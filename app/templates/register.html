@@ -1,90 +1,97 @@
-{% extends "base.html" %}
-{% block title %}Register - Registraction{% endblock %}
-{% block head %}
-    <!-- Load reCAPTCHA v3 script -->
+<!-- app/templates/register.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Registraction</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .warning { color: red; font-weight: bold; }
+    </style>
     <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
-    <script>
-        // Execute reCAPTCHA when the form is submitted
-        document.addEventListener("DOMContentLoaded", function() {
-            document.getElementById("registerForm").addEventListener("submit", function(event) {
-                event.preventDefault(); // Prevent default submission
-                grecaptcha.ready(function() {
-                    grecaptcha.execute('{{ recaptcha_site_key }}', {action: 'register'})
-                        .then(function(token) {
-                            document.getElementById("recaptchaResponse").value = token;
-                            document.getElementById("registerForm").submit();
-                        });
-                });
-            });
-        });
-    </script>
-{% endblock %}
-{% block content %}
-<div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
-    <h2 class="text-2xl font-semibold mb-4">Register as VIP</h2>
-    <form id="registerForm" method="POST" action="/vip/register" class="space-y-4">
-        <!-- Mandatory Fields -->
-        <div>
-            <label for="cellulare" class="block text-sm font-medium text-gray-700">Phone Number (Italian, 10 digits)</label>
-            <input type="text" id="cellulare" name="cellulare" required
-                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                   placeholder="e.g., 3331234567 or +393331234567">
-            <p class="text-xs text-gray-500 mt-1">Enter an Italian number (with or without +39).</p>
-        </div>
-        <div>
-            <label for="Nome" class="block text-sm font-medium text-gray-700">First Name</label>
-            <input type="text" id="Nome" name="Nome" required
-                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        <div>
-            <label for="cognome" class="block text-sm font-medium text-gray-700">Last Name</label>
-            <input type="text" id="cognome" name="cognome" required
-                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-        </div>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-md p-6 bg-white rounded-lg shadow-md">
+        <h1 class="text-2xl font-bold text-center mb-6">Membership Registration</h1>
 
-        <!-- Optional Fields -->
-        <div>
-            <label for="nascita" class="block text-sm font-medium text-gray-700">Date of Birth (Optional)</label>
-            <input type="date" id="nascita" name="nascita"
-                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        <div>
-            <label for="Email" class="block text-sm font-medium text-gray-700">Email (Optional)</label>
-            <input type="email" id="Email" name="Email"
-                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        <div>
-            <label for="Indirizzo" class="block text-sm font-medium text-gray-700">Address (Optional)</label>
-            <input type="text" id="Indirizzo" name="Indirizzo"
-                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        <div>
-            <label for="Citta" class="block text-sm font-medium text-gray-700">City (Optional)</label>
-            <input type="text" id="Citta" name="Citta"
-                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        <div>
-            <label for="Prov" class="block text-sm font-medium text-gray-700">Province (Optional)</label>
-            <input type="text" id="Prov" name="Prov"
-                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-        </div>
-        <div>
-            <label for="Cap" class="block text-sm font-medium text-gray-700">Postal Code (Optional)</label>
-            <input type="text" id="Cap" name="Cap"
-                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-        </div>
+        <form action="/vip/{{ token }}/register" method="post" class="space-y-4">
+            <!-- Hidden reCAPTCHA token -->
+            <input type="hidden" name="recaptcha_response" id="recaptcha_response">
 
-        <!-- Hidden input for reCAPTCHA token -->
-        <input type="hidden" id="recaptchaResponse" name="recaptcha_response">
+            <!-- Mandatory Fields -->
+            <div>
+                <label for="cellulare" class="block text-sm font-medium text-gray-700">Phone Number <span class="text-red-500">*</span></label>
+                <input type="text" name="cellulare" id="cellulare" value="{{ form_data.cellulare|default('') }}"
+                       class="mt-1 block w-full p-2 border rounded-md" required>
+                <p class="text-xs text-gray-500 mt-1">Enter a 10-digit Italian number (e.g., 1234567890). +39 optional.</p>
+            </div>
+
+            <div>
+                <label for="Nome" class="block text-sm font-medium text-gray-700">First Name <span class="text-red-500">*</span></label>
+                <input type="text" name="Nome" id="Nome" value="{{ form_data.Nome|default('') }}"
+                       class="mt-1 block w-full p-2 border rounded-md" required>
+            </div>
+
+            <div>
+                <label for="cognome" class="block text-sm font-medium text-gray-700">Last Name <span class="text-red-500">*</span></label>
+                <input type="text" name="cognome" id="cognome" value="{{ form_data.cognome|default('') }}"
+                       class="mt-1 block w-full p-2 border rounded-md" required>
+            </div>
+
+            <!-- Optional Fields -->
+            <div>
+                <label for="nascita" class="block text-sm font-medium text-gray-700">Birth Date (Optional)</label>
+                <input type="date" name="nascita" id="nascita" value="{{ form_data.nascita|default('') }}"
+                       class="mt-1 block w-full p-2 border rounded-md">
+            </div>
+
+            <div>
+                <label for="Email" class="block text-sm font-medium text-gray-700">Email (Optional)</label>
+                <input type="email" name="Email" id="Email" value="{{ form_data.Email|default('') }}"
+                       class="mt-1 block w-full p-2 border rounded-md">
+            </div>
+
+            <div>
+                <label for="Indirizzo" class="block text-sm font-medium text-gray-700">Address (Optional)</label>
+                <input type="text" name="Indirizzo" id="Indirizzo" value="{{ form_data.Indirizzo|default('') }}"
+                       class="mt-1 block w-full p-2 border rounded-md">
+            </div>
+
+            <div>
+                <label for="Citta" class="block text-sm font-medium text-gray-700">City (Optional)</label>
+                <input type="text" name="Citta" id="Citta" value="{{ form_data.Citta|default('') }}"
+                       class="mt-1 block w-full p-2 border rounded-md">
+            </div>
+
+            <div>
+                <label for="Prov" class="block text-sm font-medium text-gray-700">Province (Optional)</label>
+                <input type="text" name="Prov" id="Prov" value="{{ form_data.Prov|default('') }}"
+                       class="mt-1 block w-full p-2 border rounded-md">
+            </div>
+
+            <div>
+                <label for="Cap" class="block text-sm font-medium text-gray-700">Postal Code (Optional)</label>
+                <input type="text" name="Cap" id="Cap" value="{{ form_data.Cap|default('') }}"
+                       class="mt-1 block w-full p-2 border rounded-md">
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">Register</button>
+        </form>
 
         <!-- Warning Message -->
         {% if warning %}
-            <p class="text-red-600 font-bold text-sm">{{ warning }}</p>
+            <p class="warning mt-4 text-center">{{ warning }}</p>
         {% endif %}
+    </div>
 
-        <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
-            Register
-        </button>
-    </form>
-</div>
-{% endblock %}
+    <script>
+        grecaptcha.ready(function() {
+            grecaptcha.execute('{{ recaptcha_site_key }}', {action: 'register'}).then(function(token) {
+                document.getElementById('recaptcha_response').value = token;
+            });
+        });
+    </script>
+</body>
+</html>
